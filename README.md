@@ -2,7 +2,7 @@
 
 Yes Steve Model（YSM）服务端同步插件，适配 **Paper 26.1.2**。
 
-旧版：[https://github.com/memzgbl/ysmsync/ol](https://github.com/MEMZGBL/YSMSync/blob/main/oldver/YSMSync-GitHub1.0.0.zip)（面向 Paper/Purpur 1.19.4）。
+## 旧版：[https://github.com/memzgbl/ysmsync/ol](https://github.com/MEMZGBL/YSMSync/blob/main/oldver/YSMSync-GitHub1.0.0.zip)（面向 Paper/Purpur 1.19.4）
 
 ---
 
