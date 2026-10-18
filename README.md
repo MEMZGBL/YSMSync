@@ -2,7 +2,7 @@
 
 Yes Steve Model（YSM）服务端同步插件，适配 **Paper 26.1.2**。
 
-原项目：[memzgbl/ysmsync](https://github.com/memzgbl/ysmsync)（面向 Paper/Purpur 1.19.4）。
+旧版：[https://github.com/memzgbl/ysmsync/ol](https://github.com/MEMZGBL/YSMSync/blob/main/oldver/YSMSync-GitHub1.0.0.zip)（面向 Paper/Purpur 1.19.4）。
 
 ---
 
@@ -15,7 +15,7 @@ Yes Steve Model（YSM）服务端同步插件，适配 **Paper 26.1.2**。
 | 客户端 Minecraft | **26.1.2** |
 | 客户端模组 | **Yes Steve Model 26.1.2** |
 
-> ⚠️ YSM 客户端模组目前最高只支持到 Minecraft **26.1.2**，26.2 / 26.3 都没有可用的客户端版本。
+>  YSM 客户端模组目前最高只支持到 Minecraft **26.1.2**，26.2 / 26.3 都没有可用的客户端版本。
 > 所以请不要把服务端升到 26.2 或更高，否则玩家装了 YSM 也连不上。
 
 客户端模组的协议通道是 `yes_steve_model:2_6_0`，与原 1.20.1 版本一致。
