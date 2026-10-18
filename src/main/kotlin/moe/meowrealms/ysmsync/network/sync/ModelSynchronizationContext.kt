@@ -13,7 +13,6 @@ import moe.meowrealms.ysmsync.network.packet.s2c.S2CModelDataPayloadPacket
 import org.bukkit.entity.Player
 import rip.ysm.security.YSMByteBuf
 import rip.ysm.security.YsmCrypt
-import space.arim.morepaperlib.scheduling.ScheduledTask
 import java.nio.ByteBuffer
 import java.nio.channels.SeekableByteChannel
 import java.nio.file.Files
@@ -25,6 +24,8 @@ import kotlin.concurrent.Volatile
 import kotlin.concurrent.withLock
 import kotlin.math.max
 import kotlin.math.min
+import moe.meowrealms.ysmsync.utils.Scheduling
+import moe.meowrealms.ysmsync.utils.Scheduling.TaskHandle
 
 class ModelSynchronizationContext(
     val player: Player
@@ -44,7 +45,7 @@ class ModelSynchronizationContext(
     private var allowedModels: Set<ServerModelData> = HashSet()
 
     private val scheduledTasksLock = ReentrantLock()
-    private val scheduledTasks: MutableList<ScheduledTask> = ArrayList()
+    private val scheduledTasks: MutableList<TaskHandle> = ArrayList()
     private val rateLimiter = ModelSyncRateLimiter(YSMSyncConstants.ModelSyncConstants.PER_PLAYER_RATE_LIMIT_MBPS)
 
     // reusable ByteBuf for chunk payload building, allocated once in sendMissing()
@@ -140,7 +141,7 @@ class ModelSynchronizationContext(
         }
 
         this.trackScheduledTask(
-            YSMSyncMain.instance.morePaperLib.scheduling().asyncScheduler().run(Runnable {
+            Scheduling.asyncScheduler().run(Runnable {
                 this.prepareNextRequestedModel(queue)
             })
         )
@@ -185,7 +186,7 @@ class ModelSynchronizationContext(
         }
 
         this.trackScheduledTask(
-            YSMSyncMain.instance.morePaperLib.scheduling().asyncScheduler().run(Runnable {
+            Scheduling.asyncScheduler().run(Runnable {
                 this.processNextModelChunk(transfer)
             })
         )
@@ -346,10 +347,11 @@ class ModelSynchronizationContext(
                         outBuf.writeString(pack.description ?: "")
                     }
 
-                    if (pack.lang != null && !pack.lang.isEmpty()) {
-                        outBuf.writeVarInt(pack.lang.size)
+                    val packLang = pack.lang
+                    if (packLang != null && !packLang.isEmpty()) {
+                        outBuf.writeVarInt(packLang.size)
 
-                        for (langEntry in pack.lang.entries) {
+                        for (langEntry in packLang.entries) {
                             outBuf.writeString(langEntry.key)
                             outBuf.writeVarInt((langEntry.value as MutableMap<*, *>).size)
 
@@ -383,13 +385,13 @@ class ModelSynchronizationContext(
         val delayTicks = max(perPlayerDelay, globalDelay)
 
         val task = if (delayTicks <= 0L) {
-            YSMSyncMain.instance.morePaperLib.scheduling().entitySpecificScheduler(this.player).run(Runnable {
+            Scheduling.entitySpecificScheduler(this.player).run(Runnable {
                 if (this.sendModelPayloadIfAlive(payload, minimumState)) {
                     onSent?.invoke()
                 }
             }, null)
         } else {
-            YSMSyncMain.instance.morePaperLib.scheduling().entitySpecificScheduler(this.player).runDelayed(Runnable {
+            Scheduling.entitySpecificScheduler(this.player).runDelayed(Runnable {
                 if (this.sendModelPayloadIfAlive(payload, minimumState)) {
                     onSent?.invoke()
                 }
@@ -399,7 +401,7 @@ class ModelSynchronizationContext(
         this.trackScheduledTask(task)
     }
 
-    private fun trackScheduledTask(task: ScheduledTask?) {
+    private fun trackScheduledTask(task: TaskHandle?) {
         this.scheduledTasksLock.withLock {
             task?.let {
                 this.scheduledTasks.add(it)

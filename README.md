@@ -1,74 +1,146 @@
-# YSMSync
+# YSMSync — Paper 26.1.2 版
 
-一个面向 Paper/Purpur 1.19.4 的 Yes Steve Model（YSM）服务端插件。
+Yes Steve Model（YSM）服务端同步插件，适配 **Paper 26.1.2**。
 
-## 功能
+原项目：[memzgbl/ysmsync](https://github.com/memzgbl/ysmsync)（面向 Paper/Purpur 1.19.4）。
 
-- 与安装 YSM 客户端模组的玩家进行协议握手
-- 同步玩家模型、模型切换、动画和部分 Molang 数据
-- 管理和缓存 `.ysm` 模型文件
-- 支持客户端模型上传
-- 支持模型同步带宽限制
-- 提供 Web 模型管理门户，可上传模型和图片
+---
 
-## 环境要求
+## 重要：版本对应关系
 
-- Paper 或 Purpur 1.19.4
-- Java 17 或更高版本
-- ProtocolLib
-- 可选依赖：Images
-- 客户端需要安装兼容的 Yes Steve Model 模组
+| 组件 | 必须是 |
+| --- | --- |
+| 服务端 | **Paper 26.1.2**（`26.1.2.build.74-stable`） |
+| 服务端 Java | **Java 25** |
+| 客户端 Minecraft | **26.1.2** |
+| 客户端模组 | **Yes Steve Model 26.1.2** |
+
+> ⚠️ YSM 客户端模组目前最高只支持到 Minecraft **26.1.2**，26.2 / 26.3 都没有可用的客户端版本。
+> 所以请不要把服务端升到 26.2 或更高，否则玩家装了 YSM 也连不上。
+
+客户端模组的协议通道是 `yes_steve_model:2_6_0`，与原 1.20.1 版本一致。
+
+---
 
 ## 安装
 
-1. 将 `YSMSync.jar` 放入服务端的 `plugins` 目录。
-2. 安装并启用 ProtocolLib。
-3. 启动服务器，插件会生成 `plugins/YSMSync/config.yml`。
-4. 根据需要修改模型同步和 Web 门户配置。
+1. 确认服务端是 Paper 26.1.2，并且用 Java 25 启动。
+2. 把构建产物 `build/libs/YSMSync-1.0.2-paper26.1.2.jar` 复制到服务端的 `plugins/` 目录。
+3. 启动服务器。日志里应出现：
 
-不要同时加载其他同名的 YSM 同步插件，以免插件数据目录或网络协议处理发生冲突。
+   ```
+   [YSMSync] All models has been loaded! Currently has N models loaded.
+   [YSMSync] YSM web portal: http://0.0.0.0:25584, native sync recheck=30s
+   ```
 
-## 命令
+4. **不需要 ProtocolLib**（本移植版已改用原生 Netty 实现，老教程里要求装 ProtocolLib 的说法已失效）。
 
-管理员可以使用以下命令：
-
-```text
-/ysmsync reload
-/ysmsync setmodel <玩家> <模型ID> [材质]
-```
-
-模型重载权限：
-
-```text
-ysmsync.commands.reloadmodels
-```
-
-## 从源码构建
-
-构建需要 JDK 21、Gradle，以及 Paper 1.19.4 和 ProtocolLib 的服务端依赖。服务端依赖不会提交到仓库，可以通过 `serverDir` 指定本地服务端目录：
-
-```bash
-gradle -PserverDir=/disk2/mcserver/1 shadowJar
-```
-
-构建产物位于 `build/libs/YSMSync-1.0.1-1.19.4-port.jar`。
-
-## Web 模型门户
-
-默认配置中 Web 门户监听 `0.0.0.0:25584`，支持模型和图片上传。对外开放前应配置 HTTPS 反向代理，并限制管理账号和访问范围。
-
-## 目录说明
+第一次启动后会生成：
 
 ```text
 plugins/YSMSync/config.yml       插件配置
-plugins/YSMSync/models/          模型文件
-plugins/YSMSync/caches/          模型缓存
-plugins/YSMSync/player_data/     玩家模型数据
+plugins/YSMSync/models/custom/   放 .ysm 模型文件（玩家可选用）
+plugins/YSMSync/models/builtin/  内置模型
+plugins/YSMSync/models/auth/     授权模型
+plugins/YSMSync/caches/          模型缓存（自动生成）
+plugins/YSMSync/player_data/     玩家数据
 ```
 
-## 声明 
+放好模型后执行 `/ysmsync reload` 让插件重新扫描。
 
-该插件是基于 https://github.com/EilsapMC/Noir 开发的非官方衍生项目
-核心 YSM 桥接代码来源于 Noir 经过我和gpt的修改
-本项目与 CloudXmc、Noir 原作者及 YSM 官方没有合作关系
+> 不要同时加载其他 YSM 同步类插件，会导致数据目录或协议处理冲突。
+
+---
+
+## 命令
+
+```text
+/ysmsync reload                          重载模型
+/ysmsync setmodel <玩家> <模型ID> [材质]   给玩家设置模型
+```
+
+需要权限 `ysmsync.commands.reloadmodels`（默认 OP）。
+
+---
+
+## Web 模型管理门户
+
+默认监听 `0.0.0.0:25584`，浏览器打开 `http://服务器IP:25584/` 即可上传模型和图片。
+
+**对外开放前请务必配置 HTTPS 反向代理并限制访问范围**，它默认没有 TLS。
+
+接口文档见 `WEB_API.md`。
+
+### 端口被占用怎么办（重要）
+
+如果 25584 端口已被别的程序占用（或你同时开了两个服务端实例），插件会打印：
+
+```
+[YSMSync] 无法在 0.0.0.0:25584 启动 YSM Web 门户（Address already in use）。
+          模型同步功能不受影响，如需网页管理请修改 config.yml 的 web-portal.port，
+          或设置 web-portal.enabled=false 关闭该提示。
+```
+
+此时**模型同步照常工作**，只是网页管理不可用。想恢复网页管理，二选一：
+
+```yaml
+web-portal:
+  port: 25585        # 换一个没被占用的端口
+  # 或者干脆关掉
+  # enabled: false
+```
+
+> 旧版本（v1.0.2 之前的构建）在端口被占用时会把整个插件禁用，
+> 表现为玩家进服后模型完全不同步、`/ysmsync reload` 报
+> `IllegalPluginAccessException`。本版已修复为只降级 Web 门户。
+
+---
+
+## 配置要点
+
+`plugins/YSMSync/config.yml` 可调整模型同步限速、Web 门户端口等。改完执行 `/ysmsync reload`。
+
+---
+
+## 从源码构建
+
+需要 **JDK 25**（paper-api 26.1.2 是 Java 25 字节码，JDK 21 会直接报错）和 Gradle 9.x。
+
+```bash
+# 从你的服务端目录复制编译所需的 NMS jar 与同版本 Netty
+# 注意：文件若放在 Android 存储（/sdcard）上没有执行权限位，用 bash 调起
+bash prepare-libs.sh /path/to/paper-26.1.2.jar
+
+JAVA_HOME=/path/to/jdk-25 gradle build
+```
+
+产物：`build/libs/YSMSync-1.0.2-paper26.1.2.jar`
+
+`libs/` 里已内置 `ysm-core-pure.jar`（从 YSM 模组剥离的纯数据逻辑，107 个类，零 Minecraft 引用）。
+
+---
+
+## 移植说明
+
+改造点、技术细节与实测验证记录见 **`PORTING-26.1.2.md`**。
+
+简要概括：剥离 YSM 模组依赖为独立 jar、去掉 ProtocolLib 改用原生 Netty 负载桥、
+去掉 MorePaperLib 改用 Paper 原生调度器、适配 26.x 的 `Identifier` 与 Java 25 字节码。
+
+---
+
+## 已验证
+
+在真实 Paper `26.1.2.build.74-stable` 上实测通过：插件加载、`.ysm` 模型解析
+（crypto v2 与 v3 两种格式）、缓存生成、`/ysmsync reload`、Web 门户，
+以及自定义负载的**双向**收发（用自写的最小协议客户端验证到
+`Received handshake confirmed packet … Begin model synchronization` 与后续模型同步数据流）。
+
+---
+
+## 声明
+
+该插件是基于 https://github.com/EilsapMC/Noir 开发的非官方衍生项目。
+核心 YSM 桥接代码来源于 Noir，经过原作者与 AI 修改。
+本项目与 CloudXmc、Noir 原作者及 YSM 官方没有合作关系。
 本项目及其衍生代码按照 GNU GPL v3.0 发布。

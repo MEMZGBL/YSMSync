@@ -9,6 +9,7 @@ import moe.meowrealms.ysmsync.network.ClientConnectionManager.getYsmConnection
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
+import moe.meowrealms.ysmsync.utils.Scheduling
 
 class YSMSyncCommand : Command(
     "ysmsync",
@@ -60,7 +61,7 @@ class YSMSyncCommand : Command(
 
         this.sendI18n(sender, YSMSyncConstants.LanguageConstants.RELOAD_MODELS_STARTED)
 
-        YSMSyncMain.instance.morePaperLib.scheduling().asyncScheduler().run(Runnable {
+        Scheduling.asyncScheduler().run(Runnable {
             val loadBegin = System.nanoTime()
 
             try {

@@ -16,6 +16,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
+import moe.meowrealms.ysmsync.utils.Scheduling
 
 // TODO 这块让ai写的()
 object PlayerDataStorage : Listener {
@@ -34,7 +35,7 @@ object PlayerDataStorage : Listener {
     }
 
     fun init() {
-        this.asyncExecutor = YSMSyncMain.instance.morePaperLib.scheduling().asyncScheduler()
+        this.asyncExecutor = Scheduling.asyncScheduler()
 
         Bukkit.getPluginManager().registerEvents(this, YSMSyncMain.instance)
     }

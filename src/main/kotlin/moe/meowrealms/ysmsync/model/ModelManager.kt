@@ -1,11 +1,9 @@
 package moe.meowrealms.ysmsync.model
 
-import com.elfmcys.yesstevemodel.model.ServerModelManager
 import com.elfmcys.yesstevemodel.model.format.ServerAnimationInfo
 import com.elfmcys.yesstevemodel.model.format.ServerModelData
 import com.elfmcys.yesstevemodel.resource.YSMBinaryDeserializer
 import com.elfmcys.yesstevemodel.resource.YSMBinarySerializer
-import com.elfmcys.yesstevemodel.resource.YSMClientMapper
 import com.elfmcys.yesstevemodel.resource.YSMFolderDeserializer
 import com.elfmcys.yesstevemodel.resource.models.ModelProperties
 import com.elfmcys.yesstevemodel.resource.pojo.RawYsmModel
@@ -20,7 +18,6 @@ import moe.meowrealms.ysmsync.network.sync.ModelSynchronizationContext
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.tuple.Pair
 import org.bukkit.entity.Player
-import rip.ysm.legacy.YesModelUtils
 import rip.ysm.security.YsmCrypt
 import java.net.URI
 import java.nio.charset.StandardCharsets
@@ -31,6 +28,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
+import moe.meowrealms.ysmsync.utils.Scheduling
 
 // TODO 等ysm开源了重写()
 object ModelManager {
@@ -49,7 +47,7 @@ object ModelManager {
 
     val secureRand = SecureRandom()
 
-    private val loadedPacks: MutableMap<String, ServerModelManager.ServerPackData> = ConcurrentHashMap()
+    private val loadedPacks: MutableMap<String, ServerPackData> = ConcurrentHashMap()
 
     @Volatile
     private var availableCaches: IntSet = IntOpenHashSet()
@@ -191,7 +189,7 @@ object ModelManager {
         return modelData.modelInfo.textures.map { it as String }
     }
 
-    fun getBuiltinModels(): Collection<ServerModelManager.ServerPackData> {
+    fun getBuiltinModels(): Collection<ServerPackData> {
         return this.loadedPacks.values
     }
 
@@ -425,12 +423,12 @@ object ModelManager {
                                 val relativePath = modelsDir.relativize(path).toString().replace('\\', '/')
                                 val modelId = relativePath // 原始代码就是 relativePath
                                 val raw = Files.readAllBytes(path)
-                                val ysmCryptoVersion = YesModelUtils.getYsmCryptoVersion(raw);
+                                val ysmCryptoVersion = YsmLegacyReader.getYsmCryptoVersion(raw);
                                 if (ysmCryptoVersion == -1) throw IllegalStateException ("Unknown YSM crypto version for file: $path");
 
                                 var rawModel: RawYsmModel?
                                 if (ysmCryptoVersion == 1 || ysmCryptoVersion == 2) { // 旧版加密模型
-                                    val input = YesModelUtils.input(raw)
+                                    val input = YsmLegacyReader.input(raw)
                                     YSMFolderDeserializer(input).use {
                                         rawModel = it.deserialize();
                                     }
@@ -457,7 +455,7 @@ object ModelManager {
                             return@runAsync
                         }
 
-                        YSMSyncMain.instance.morePaperLib.scheduling().asyncScheduler().execute(it)
+                        Scheduling.asyncScheduler().execute(it)
                     })
                 }.toList().toTypedArray()).join()
             }
@@ -479,7 +477,7 @@ object ModelManager {
                             val packJson = modelDir.resolve("ysm-pack.json")
                             if (Files.exists(packJson)) {
                                 try {
-                                    val packData = ServerModelManager.ServerPackData()
+                                    val packData = ServerPackData()
                                     packData.folderPath = baseDir.toUri().relativize(modelDir.toUri()).path
 
                                     val jsonStr = Files.readString(packJson, StandardCharsets.UTF_8)
@@ -488,7 +486,8 @@ object ModelManager {
                                     if (json.has("description")) packData.description = json.get("description").asString
 
                                     if (json.has("lang") && json.get("lang").isJsonObject) {
-                                        packData.lang = HashMap()
+                                        val langMap = HashMap<String, MutableMap<String, String>>()
+                                        packData.lang = langMap
                                         val langObj = json.getAsJsonObject("lang")
                                         for ((langKey, value) in langObj.entrySet()) {
                                             if (value.isJsonObject) {
@@ -496,7 +495,7 @@ object ModelManager {
                                                 for ((transKey, transValue) in value.asJsonObject.entrySet()) {
                                                     translations[transKey] = transValue.asString
                                                 }
-                                                packData.lang[langKey] = translations
+                                                langMap[langKey] = translations
                                             }
                                         }
                                     }
@@ -511,7 +510,7 @@ object ModelManager {
                                         packData.iconFormat = 2 // 2 = PNG
                                     }
 
-                                    this.loadedPacks[packData.folderPath] = packData
+                                    this.loadedPacks[packData.folderPath ?: ""] = packData
                                 } catch (e: Exception) {
                                     YSMSyncMain.instance.slF4JLogger.error("Failed to load pack metadata: $packJson", e)
                                 }
@@ -522,7 +521,7 @@ object ModelManager {
                                 return@runAsync
                             }
 
-                            YSMSyncMain.instance.morePaperLib.scheduling().asyncScheduler().execute(it)
+                            Scheduling.asyncScheduler().execute(it)
                         }
                     )
                 }.toList().toTypedArray()).join()
@@ -600,7 +599,7 @@ object ModelManager {
         isAuth: Boolean,
         isCustomSkinModel: Boolean
     ): ServerModelData {
-        val serverModelInfo = YSMClientMapper.buildModelInfo(raw)
+        val serverModelInfo = YsmModelInfoBuilder.buildModelInfo(raw)
 
         val animMap = raw.mainEntity.animationFiles.mapValues { it.value.animations.keys.toTypedArray() }
         val texArr = raw.mainEntity.textures.keys.toTypedArray()

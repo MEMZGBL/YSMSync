@@ -14,11 +14,9 @@ import moe.meowrealms.ysmsync.network.packet.c2s.*
 import moe.meowrealms.ysmsync.network.packet.s2c.*
 import moe.meowrealms.ysmsync.tracker.EntityTracker
 import org.bukkit.plugin.java.JavaPlugin
-import space.arim.morepaperlib.MorePaperLib
 
 
 class YSMSyncMain : JavaPlugin() {
-    val morePaperLib: MorePaperLib = MorePaperLib(this)
 
     companion object {
         lateinit var instance: YSMSyncMain
@@ -138,7 +136,15 @@ class YSMSyncMain : JavaPlugin() {
         this.initDataStorage()
         this.initEntityTracker()
         this.initCommands()
-        WebPortalManager.start(this)
+
+        // Web 门户是可选附属功能。它内部已对端口占用做了降级处理，
+        // 这里再兜一层：任何意外异常都不能让 onEnable 抛出，
+        // 否则服务端会禁用整个插件，模型同步（主功能）也会一起失效。
+        try {
+            WebPortalManager.start(this)
+        } catch (throwable: Throwable) {
+            this.slF4JLogger.error("启动 YSM Web 门户时发生异常，已跳过；模型同步功能不受影响。", throwable)
+        }
 
         inited = true
     }

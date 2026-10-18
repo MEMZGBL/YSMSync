@@ -1,1 +1,1 @@
-rootProject.name = "YSMSync-1.19.4-port"
+rootProject.name = "YSMSync-paper26.1.2"

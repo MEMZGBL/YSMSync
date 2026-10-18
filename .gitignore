@@ -9,3 +9,6 @@ logs/
 .gradle/
 .kotlin/
 build/
+
+# Build artifacts / packaged jars (build outputs are not committed)
+dist/

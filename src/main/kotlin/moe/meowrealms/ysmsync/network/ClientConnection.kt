@@ -26,13 +26,14 @@ import moe.meowrealms.ysmsync.network.sync.ModelSynchronizationContext
 import moe.meowrealms.ysmsync.tracker.EntityTracker
 import moe.meowrealms.ysmsync.web.WebPortalManager
 import org.bukkit.entity.Player
-import space.arim.morepaperlib.scheduling.ScheduledTask
+import moe.meowrealms.ysmsync.utils.Scheduling
+import moe.meowrealms.ysmsync.utils.Scheduling.TaskHandle
 
 class ClientConnection (
     private val player: Player,
 ): PacketHandler {
     private lateinit var synchronizationContext: ModelSynchronizationContext
-    private var tickTask: ScheduledTask? = null
+    private var tickTask: TaskHandle? = null
     private var handshakeConfirmed: Boolean = false
 
     fun isHandshakeConfirmed(): Boolean = this.handshakeConfirmed
@@ -44,7 +45,7 @@ class ClientConnection (
         this.send(S2CHandshakeRequestPacket(ClientConnectionManager.VERSION))
 
         // kick-start ticking
-        YSMSyncMain.instance.morePaperLib.scheduling().entitySpecificScheduler(this.player).runAtFixedRate(Runnable{
+        Scheduling.entitySpecificScheduler(this.player).runAtFixedRate(Runnable{
             this.tickConnection()
         }, null, 1L, 1L)?.let {
             this.tickTask = it
@@ -85,7 +86,7 @@ class ClientConnection (
         EntityTracker.resynchronizeViewer(this.player)
 
         for (delayTicks in longArrayOf(5L, 40L)) {
-            YSMSyncMain.instance.morePaperLib.scheduling().entitySpecificScheduler(this.player).runDelayed(Runnable {
+            Scheduling.entitySpecificScheduler(this.player).runDelayed(Runnable {
                 if (this.handshakeConfirmed && this.player.isOnline) {
                     EntityTracker.resynchronizeViewer(this.player)
                 }

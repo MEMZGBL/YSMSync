@@ -16,6 +16,7 @@ import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.plugin.messaging.PluginMessageListener
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import moe.meowrealms.ysmsync.utils.Scheduling
 
 object ClientConnectionManager : Listener, PluginMessageListener {
     const val VERSION = "2.6.0"
@@ -30,10 +31,8 @@ object ClientConnectionManager : Listener, PluginMessageListener {
         Bukkit.getMessenger().registerIncomingPluginChannel(YSMSyncMain.instance, LISTENING_CHANNEL_STR, this)
         Bukkit.getMessenger().registerOutgoingPluginChannel(YSMSyncMain.instance, LISTENING_CHANNEL_STR)
 
-        // On Purpur 1.19.4 Forge client payloads are not always forwarded to
-        // Bukkit's legacy plugin-message listener. ProtocolLib receives the
-        // decoded packet after the current protocol mapping has been applied.
-        Purpur1194ProtocolLibBridge.init()
+        // Paper 26.x 下 NeoForge 客户端发送的是标准 CustomPacketPayload。
+        // 原生桥在 Netty 管线内直接接管 YSM 通道；Bukkit 监听作为兜底保留。
 
         YSMSyncMain.instance.slF4JLogger.info("Initialized network manager.")
     }
@@ -48,9 +47,14 @@ object ClientConnectionManager : Listener, PluginMessageListener {
             return
         }
 
+        // 原生桥已消费该负载时，Bukkit 不应重复派发
+        if (PaperYsmPayloadBridge.isBridged(player)) {
+            return
+        }
+
         // push back to main thread
         // so that we could manage the states of a single connection safely and easily
-        YSMSyncMain.instance.morePaperLib.scheduling().entitySpecificScheduler(player).run(Runnable {
+        Scheduling.entitySpecificScheduler(player).run(Runnable {
             val messageAsBuffer = SimpleFriendlyByteBuf(Unpooled.wrappedBuffer(message))
 
             try {
@@ -65,7 +69,7 @@ object ClientConnectionManager : Listener, PluginMessageListener {
     fun onPlayerJoinEvent(event: PlayerJoinEvent) {
         YSMSyncMain.instance.slF4JLogger.info("Player {} has connected with UUID {}", event.player.name, event.player.uniqueId)
 
-        Purpur1194PayloadBridge.inject(event.player)
+        PaperYsmPayloadBridge.inject(event.player)
 
         val newConnection = ClientConnection(event.player)
 
@@ -83,7 +87,7 @@ object ClientConnectionManager : Listener, PluginMessageListener {
 
     @EventHandler
     fun onPlayerQuitEvent(event: PlayerQuitEvent) {
-        Purpur1194PayloadBridge.remove(event.player)
+        PaperYsmPayloadBridge.remove(event.player)
         val disconnected = this.connectedPlayers.remove(event.player.uniqueId)
 
         if (disconnected != null) {
@@ -106,7 +110,7 @@ object ClientConnectionManager : Listener, PluginMessageListener {
         for ((playerUuid, connection) in this.connectedPlayers) {
             val player = Bukkit.getPlayer(playerUuid) ?: continue
 
-            YSMSyncMain.instance.morePaperLib.scheduling().entitySpecificScheduler(player).run(Runnable {
+            Scheduling.entitySpecificScheduler(player).run(Runnable {
                 try {
                     connection.restartModelSynchronizationAfterReload()
                 } catch (throwable: Throwable) {
@@ -141,10 +145,8 @@ object ClientConnectionManager : Listener, PluginMessageListener {
                 }
             }
 
-            // Forge SimpleChannel only marks the YSM channel negotiated when
-            // it receives an actual native CustomPayload packet. On Purpur
-            // 1.19.4 Bukkit's legacy wrapper is insufficient for that path.
-            if (!Purpur1194PayloadBridge.sendClientboundPayload(receiver, LISTENING_CHANNEL_STR, encodedPacket)) {
+            // 优先走原生 CustomPayload；通道尚未建立时回退到 Bukkit 插件消息
+            if (!PaperYsmPayloadBridge.sendClientboundPayload(receiver, encodedPacket)) {
                 receiver.sendPluginMessage(YSMSyncMain.instance, LISTENING_CHANNEL_STR, encodedPacket)
             }
         }catch (throwable : Throwable){

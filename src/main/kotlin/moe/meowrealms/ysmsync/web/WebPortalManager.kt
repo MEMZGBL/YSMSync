@@ -34,13 +34,59 @@ object WebPortalManager {
     data class PortalModel(var id: String = "", var name: String = "", var owner: String = "", var private: Boolean = false, val grants: MutableSet<String> = linkedSetOf())
 
     fun start(instance: YSMSyncMain) {
-        plugin = instance; if (!plugin.config.getBoolean("web-portal.enabled", true)) return
-        file = plugin.dataFolder.toPath().resolve("web_portal.json"); maxSize = plugin.config.getInt("web-portal.max-upload-bytes", maxSize); load()
-        val host = plugin.config.getString("web-portal.host", "0.0.0.0")!!; val port = plugin.config.getInt("web-portal.port", 25584)
-        server = HttpServer.create(InetSocketAddress(host, port), 0).also { it.executor = Executors.newFixedThreadPool(4); it.createContext("/") { e -> route(e) }; it.start() }
-        val seconds = plugin.config.getLong("web-portal.sync-check-interval-seconds", 30).coerceAtLeast(10)
-        timer = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, Runnable { ClientConnectionManager.restartModelSynchronizationForConnectedPlayers() }, seconds * 20, seconds * 20)
-        plugin.slF4JLogger.info("YSM web portal: http://{}:{}, native sync recheck={}s", host, port, seconds)
+        plugin = instance
+        if (!plugin.config.getBoolean("web-portal.enabled", true)) {
+            plugin.slF4JLogger.info("YSM web portal disabled by config (web-portal.enabled=false).")
+            // 门户关闭时仍然要跑原生同步复查，否则客户端模型同步会缺少定时纠偏
+            startSyncRecheckTimer()
+            return
+        }
+
+        file = plugin.dataFolder.toPath().resolve("web_portal.json")
+        maxSize = plugin.config.getInt("web-portal.max-upload-bytes", maxSize)
+        load()
+
+        val host = plugin.config.getString("web-portal.host", "0.0.0.0")!!
+        val port = plugin.config.getInt("web-portal.port", 25584)
+
+        // 端口被占用属于常见的部署事故（重复启动实例、端口被其他程序抢占）。
+        // 这里必须降级处理：Web 门户是可选的附属功能，绝不能让它把
+        // 模型同步这个主功能一起拖垮——onEnable 抛出异常会导致整个插件被服务端禁用。
+        try {
+            server = HttpServer.create(InetSocketAddress(host, port), 0).also {
+                it.executor = Executors.newFixedThreadPool(4)
+                it.createContext("/") { e -> route(e) }
+                it.start()
+            }
+        } catch (throwable: Throwable) {
+            server = null
+            plugin.slF4JLogger.error(
+                "无法在 {}:{} 启动 YSM Web 门户（{}）。模型同步功能不受影响，" +
+                    "如需网页管理请修改 config.yml 的 web-portal.port，或设置 web-portal.enabled=false 关闭该提示。",
+                host, port, throwable.message
+            )
+            startSyncRecheckTimer()
+            return
+        }
+
+        startSyncRecheckTimer()
+        plugin.slF4JLogger.info(
+            "YSM web portal: http://{}:{}, native sync recheck={}s",
+            host, port, syncRecheckSeconds()
+        )
+    }
+
+    private fun syncRecheckSeconds(): Long =
+        plugin.config.getLong("web-portal.sync-check-interval-seconds", 30).coerceAtLeast(10)
+
+    private fun startSyncRecheckTimer() {
+        val seconds = syncRecheckSeconds()
+        timer = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+            plugin,
+            Runnable { ClientConnectionManager.restartModelSynchronizationForConnectedPlayers() },
+            seconds * 20,
+            seconds * 20
+        )
     }
     fun stop() { if (timer != -1) Bukkit.getScheduler().cancelTask(timer); timer = -1; server?.stop(1); server = null; if (::file.isInitialized) save() }
     fun bindPlayer(player: Player, code: String): String { val user = codes.remove(code) ?: return "绑定码无效或已过期。"; synchronized(this) { data.accounts[user]?.uuid = player.uniqueId.toString(); save() }; return "已绑定网页账户 $user。" }

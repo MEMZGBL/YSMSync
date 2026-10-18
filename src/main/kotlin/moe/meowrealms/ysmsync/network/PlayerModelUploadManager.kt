@@ -16,6 +16,7 @@ import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import moe.meowrealms.ysmsync.utils.Scheduling
 
 /**
  * Receives a selected local .ysm file from the optional YSM Model Share client
@@ -104,7 +105,7 @@ object PlayerModelUploadManager : PluginMessageListener {
         }
 
         YSMSyncMain.instance.slF4JLogger.info("Stored uploaded YSM model for ${player.name} as $relativeId; reloading YSMSync models.")
-        YSMSyncMain.instance.morePaperLib.scheduling().asyncScheduler().run(Runnable {
+        Scheduling.asyncScheduler().run(Runnable {
             try {
                 ModelManager.loadModels()
                 // ModelManager has actually decrypted, deserialized and cached the
