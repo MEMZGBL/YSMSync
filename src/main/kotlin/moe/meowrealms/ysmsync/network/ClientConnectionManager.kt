@@ -17,11 +17,21 @@ import org.bukkit.plugin.messaging.PluginMessageListener
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import moe.meowrealms.ysmsync.utils.Scheduling
+import moe.meowrealms.ysmsync.modernysm.ModernYsmManager
 
 object ClientConnectionManager : Listener, PluginMessageListener {
     const val VERSION = "2.6.0"
     private val LISTENING_CHANNEL = NamespacedKey("yes_steve_model", VERSION.replace(".", "_"))
     private val LISTENING_CHANNEL_STR = LISTENING_CHANNEL.toString()
+
+    /**
+     * 是否启用 ModernYSM / OpenYSM 2.6.x 协议。
+     *
+     * 该协议与 plugins 里旧版 YSM 协议共用通道 `yes_steve_model:2_6_0`，
+     * 二者的包内容不兼容，因此同一时刻只能启用一套。现代 YSM 2.6.x
+     * 客户端走的都是 OpenYSM 这套 01/03/05 加密同步流程。
+     */
+    var modernYsmEnabled: Boolean = true
 
     private val connectedPlayers : MutableMap<UUID, ClientConnection> = ConcurrentHashMap()
 
@@ -34,6 +44,10 @@ object ClientConnectionManager : Listener, PluginMessageListener {
         // Paper 26.x 下 NeoForge 客户端发送的是标准 CustomPacketPayload。
         // 原生桥在 Netty 管线内直接接管 YSM 通道；Bukkit 监听作为兜底保留。
 
+        if (modernYsmEnabled) {
+            ModernYsmManager.init()
+        }
+
         YSMSyncMain.instance.slF4JLogger.info("Initialized network manager.")
     }
 
@@ -44,6 +58,16 @@ object ClientConnectionManager : Listener, PluginMessageListener {
         message: ByteArray
     ) {
         if (channel != LISTENING_CHANNEL_STR) {
+            return
+        }
+
+        // ModernYSM / OpenYSM 协议：独立分派，避免与旧协议解析器互相干扰
+        if (modernYsmEnabled) {
+            Scheduling.entitySpecificScheduler(player).run(Runnable {
+                if (player.isOnline) {
+                    ModernYsmManager.onClientMessage(player, message)
+                }
+            }, null)
             return
         }
 
@@ -71,6 +95,15 @@ object ClientConnectionManager : Listener, PluginMessageListener {
 
         PaperYsmPayloadBridge.inject(event.player)
 
+        if (modernYsmEnabled) {
+            try {
+                ModernYsmManager.onPlayerJoin(event.player)
+            } catch (throwable: Throwable) {
+                this.connectionExceptionCaught(event.player, throwable)
+            }
+            return
+        }
+
         val newConnection = ClientConnection(event.player)
 
         this.connectedPlayers[event.player.uniqueId] = newConnection
@@ -88,6 +121,12 @@ object ClientConnectionManager : Listener, PluginMessageListener {
     @EventHandler
     fun onPlayerQuitEvent(event: PlayerQuitEvent) {
         PaperYsmPayloadBridge.remove(event.player)
+
+        if (modernYsmEnabled) {
+            ModernYsmManager.onPlayerQuit(event.player)
+            return
+        }
+
         val disconnected = this.connectedPlayers.remove(event.player.uniqueId)
 
         if (disconnected != null) {
@@ -196,6 +235,12 @@ object ClientConnectionManager : Listener, PluginMessageListener {
     fun onNativeClientMessage(sender: Player, message: ByteArray) {
         Bukkit.getScheduler().runTask(YSMSyncMain.instance, Runnable {
             if (!sender.isOnline) return@Runnable
+
+            // ModernYSM / OpenYSM 协议走独立分派
+            if (modernYsmEnabled) {
+                ModernYsmManager.onClientMessage(sender, message)
+                return@Runnable
+            }
 
             val messageAsBuffer = SimpleFriendlyByteBuf(Unpooled.wrappedBuffer(message))
             try {

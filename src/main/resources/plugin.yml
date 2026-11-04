@@ -1,9 +1,9 @@
 name: YSMSync
 version: '${version}'
 main: moe.meowrealms.ysmsync.YSMSyncMain
-api-version: '26.1'
+api-version: '26.3'
 authors: [ chatgpt, memzgbl, BaiLanYaQWQ ]
-description: Yes Steve Model synchronization plugin for Paper 26.1.2.
+description: Yes Steve Model / ModernYSM (OpenYSM) model synchronization plugin for Paper 26.3.
 softdepend: [ Images ]
 folia-supported: true
 

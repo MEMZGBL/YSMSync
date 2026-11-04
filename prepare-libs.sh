@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 准备编译所需的本地依赖（从你正在运行的 Paper 26.1.2 服务端里取）
+# 准备编译所需的本地依赖（从你正在运行的 Paper / Leaves 26.3 服务端里取）
 #
 # 用法:
-#   ./prepare-libs.sh /path/to/paper-26.1.2.jar [/path/to/server-root]
+#   ./prepare-libs.sh /path/to/leaves-26.3.jar [/path/to/server-root]
 #
 # 说明:
-#   - paper-server-26.1.2.jar : 提供 NMS 类（CustomPayload / Identifier），仅供编译
-#   - netty/*.jar             : 与服务端完全一致的 Netty 版本（4.2.7.Final）
+#   - leaves-server-26.3.jar  : 提供 NMS 类（CustomPayload / Identifier），仅供编译
+#   - netty/*.jar             : 与服务端完全一致的 Netty 版本（4.2.16.Final）
 #   libs/ysm-core-pure.jar 已内置，无需准备。
 set -euo pipefail
 
@@ -14,7 +14,7 @@ SERVER_JAR="${1:-}"
 SERVER_ROOT="${2:-}"
 
 if [[ -z "$SERVER_JAR" ]]; then
-  echo "用法: $0 <paper-26.1.2.jar 路径> [服务端根目录]" >&2
+  echo "用法: $0 <leaves-26.3.jar 路径> [服务端根目录]" >&2
   echo "提示: 服务端根目录默认取 jar 所在目录（libraries/ 就在旁边）" >&2
   exit 1
 fi
@@ -32,7 +32,7 @@ cd "$(dirname "$0")"
 mkdir -p libs/netty
 
 echo "==> 复制服务端 jar（仅编译期使用，不会打进插件）"
-cp -f "$SERVER_JAR" libs/paper-server-26.1.2.jar
+cp -f "$SERVER_JAR" libs/leaves-server-26.3.jar
 
 NETTY_DIR="$SERVER_ROOT/libraries/io/netty"
 if [[ ! -d "$NETTY_DIR" ]]; then

@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "local.mcserver"
-version = "1.0.2-paper26.1.2"
+version = "1.2.0-modernysm-26.3"
 
 repositories {
     mavenCentral()
@@ -14,17 +14,29 @@ repositories {
 }
 
 dependencies {
-    // Paper 26.1.2 API（Java 25 字节码）
-    compileOnly("io.papermc.paper:paper-api:26.1.2.build.74-stable")
+    // Paper API 26.3（自带 adventure / slf4j / fastutil 等传递依赖）
+    compileOnly("io.papermc.paper:paper-api:26.3.build.9-alpha")
 
-    // 服务端实现 jar：仅编译期访问 NMS（CustomPayload / Identifier），不打包
-    compileOnly(files("libs/paper-server-26.1.2.jar"))
+    // 服务端 NMS 实现（CustomPacketPayload / Identifier 等），仅编译期使用，不会进入产物
+    compileOnly(files("libs/leaves-server-26.3.jar"))
 
-    // Netty 由服务端提供（版本需与 26.1.2 自带的 4.2.7.Final 一致）
+    // Netty 由服务端提供（与服务端自带的 4.2.16.Final 保持一致）
     compileOnly(fileTree("libs/netty") { include("*.jar") })
 
     // 从 YSM 模组剥离出的纯数据逻辑（模型解析 / 加密 / zstd），不含任何 Minecraft 类
     implementation(files("libs/ysm-core-pure.jar"))
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testImplementation(fileTree("libs/netty") { include("*.jar") })
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "failed", "skipped")
+        showStandardStreams = true
+    }
 }
 
 kotlin {
@@ -51,7 +63,7 @@ tasks.processResources {
 tasks.shadowJar {
     archiveBaseName.set("YSMSync")
     archiveClassifier.set("")
-    // paper-api 与 paper-server 为 compileOnly，不会进入产物；
+    // leaves-server jar 与 netty 为 compileOnly，不会进入产物；
     // 运行时依赖（YSM 纯逻辑 + Kotlin 标准库）由 shadow 自动合并。
     mergeServiceFiles()
 }

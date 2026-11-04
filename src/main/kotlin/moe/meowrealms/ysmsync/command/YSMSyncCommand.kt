@@ -65,6 +65,9 @@ class YSMSyncCommand : Command(
             val loadBegin = System.nanoTime()
 
             try {
+                // 先重读 config.yml，让 web-portal.title / 限速等配置无需重启即可生效
+                YSMSyncMain.instance.reloadConfig()
+
                 ModelManager.loadModels()
 
                 val timeElapsed = (System.nanoTime() - loadBegin) / 1_000_000L
