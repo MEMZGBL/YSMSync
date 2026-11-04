@@ -1,6 +1,6 @@
-# YSMSync — Leaves/Paper 26.3 × ModernYSM 版
+# YSMSync — ModernYSM 兼容版
 
-Yes Steve Model（YSM）服务端同步插件，适配 **Minecraft 26.3** 服务端，
+Yes Steve Model（YSM）服务端同步插件，**同一份 jar 可在 Minecraft 26.1.2 ~ 26.3** 的服务端上运行，
 并让客户端使用 **ModernYSM（OpenYSM 2.6.x）** 模组时也能正常同步模型。
 
 原项目：[memzgbl/ysmsync](https://github.com/memzgbl/ysmsync)（面向 Paper/Purpur 1.19.4）。
@@ -16,12 +16,13 @@ Yes Steve Model（YSM）服务端同步插件，适配 **Minecraft 26.3** 服务
 
 | 组件 | 版本 |
 | --- | --- |
-| 服务端 | **Leaves 26.3**（Paper 系，`protocol_version = 777`） |
-| 服务端 Java | **Java 25**（必须，paper-api 26.3 是 Java 25 字节码） |
-| 客户端 Minecraft | **26.3** |
+| 服务端 | **Paper / Leaves 26.1.2 ~ 26.3**（实测 26.1.2 与 26.3 均可） |
+| 服务端 Java | **Java 25** |
+| 客户端 Minecraft | **26.1.2 ~ 26.3** |
 | 客户端模组 | **ModernYSM 2.6.x**（复用官方包名 `rip.ysm.*`，`MOD_ID = yes_steve_model`） |
 | 协议通道 | `yes_steve_model:2_6_0` |
-| 插件版本 | **1.2.0-modernysm-26.3** |
+| 插件版本 | **1.2.0-modernysm** |
+| `api-version` | `26.1`（向下兼容，26.1.2 及以上的服务端都能加载） |
 
 > 官方 Yes Steve Model 客户端目前最高只支持到较早的 Minecraft 版本，
 > 26.3 客户端请使用开源的 **ModernYSM**。两者协议一致，插件对二者都能工作。
@@ -41,7 +42,7 @@ Yes Steve Model（YSM）服务端同步插件，适配 **Minecraft 26.3** 服务
 
 ## 安装
 
-1. 把 `YSMSync-1.2.0-modernysm-26.3.jar` 放进服务端 `plugins/` 目录
+1. 把 `YSMSync-1.2.0-modernysm.jar` 放进服务端 `plugins/` 目录
 2. 启动服务端（JDK 25）
 3. 确认日志出现：
 
@@ -170,10 +171,27 @@ export PATH=$JAVA_HOME/bin:$PATH
 gradle build --no-daemon --console=plain
 ```
 
-产物：`build/libs/YSMSync-1.2.0-modernysm-26.3.jar`（shadow 打包，含依赖）。
+产物：`build/libs/YSMSync-1.2.0-modernysm.jar`（shadow 打包，含依赖）。
 
-依赖说明：`paper-api:26.3.build.9-alpha` 用 `compileOnly`，
-`ysm-core-pure.jar`（YSM 1.20.1 剥离出的纯逻辑类，含 `YsmCrypt` / 模型解析）用 `implementation`。
+依赖说明：
+
+- `paper-api:26.1.2.build.74-stable` 用 `compileOnly` —— **编译基线刻意压在 26.1.2**，
+  这样产物能同时跑在 26.1.2 和 26.3 上
+- 服务端 NMS jar（`paper-server-*.jar` / `leaves-server-*.jar`）用 `fileTree` 匹配，
+  放哪个版本都能编译
+- `ysm-core-pure.jar`（YSM 1.20.1 剥离出的纯逻辑类，含 `YsmCrypt` / 模型解析）用 `implementation`
+
+### 为什么一份 jar 能跨 26.1.2 / 26.3
+
+本插件只用到了 `DiscardedPayload` / `ClientboundCustomPayloadPacket` / `ServerboundCustomPayloadPacket` /
+`Identifier` / `Connection` 这几个 NMS 类。逐一核对过两个版本的字节码：
+
+- **类名与成员签名完全一致**（`DiscardedPayload(Identifier, byte[])`、`id()`、`data()` 等）
+- **codec 的写入行为完全一致**（都是裸 `writeBytes` / `readBytes`，没有版本差异）
+- Netty 只用 `ByteBuf` / `Channel` / `ChannelPipeline` 等基础 API，4.2.7 与 4.2.16 都具备
+
+因此不需要运行时版本判断或反射兜底。实测：26.1.2 编译的 jar 放到 26.3 服务端，
+插件加载、加密握手、模型同步、模型切换、按 Z 播放动画全部正常。
 
 ---
 

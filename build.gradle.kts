@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "local.mcserver"
-version = "1.2.0-modernysm-26.3"
+version = "1.2.0-modernysm"
 
 repositories {
     mavenCentral()
@@ -14,13 +14,16 @@ repositories {
 }
 
 dependencies {
-    // Paper API 26.3（自带 adventure / slf4j / fastutil 等传递依赖）
-    compileOnly("io.papermc.paper:paper-api:26.3.build.9-alpha")
+    // Paper API：编译基线固定在 26.1.2，产物在 26.1.2 ~ 26.3 上都能运行。
+    // 已实测：26.1.2 编译的 jar 放到 26.3 服务端，加载 / 握手 / 模型同步 / 动画全部正常。
+    compileOnly("io.papermc.paper:paper-api:26.1.2.build.74-stable")
 
-    // 服务端 NMS 实现（CustomPacketPayload / Identifier 等），仅编译期使用，不会进入产物
-    compileOnly(files("libs/leaves-server-26.3.jar"))
+    // 服务端 NMS 实现（CustomPacketPayload / Identifier 等），仅编译期使用，不会进入产物。
+    // 26.1.2 与 26.3 的 DiscardedPayload 签名与写入行为完全一致（writeBytes / readBytes），
+    // 所以 libs 下放任意一版的服务端 jar 都能编译，产物也可跨版本运行。
+    compileOnly(fileTree("libs") { include("paper-server-*.jar", "leaves-server-*.jar") })
 
-    // Netty 由服务端提供（与服务端自带的 4.2.16.Final 保持一致）
+    // Netty 由服务端提供（4.2.7 / 4.2.16 均可，只用基础 API）
     compileOnly(fileTree("libs/netty") { include("*.jar") })
 
     // 从 YSM 模组剥离出的纯数据逻辑（模型解析 / 加密 / zstd），不含任何 Minecraft 类
