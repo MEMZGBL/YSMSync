@@ -45,6 +45,15 @@ object ModelManager {
     var cacheDeterminer: Long = 0
     private lateinit var cacheKey: ByteArray
 
+    /**
+     * 模型标识 → [hash1, hash2]。
+     *
+     * ModernYSM / OpenYSM 协议按 hash1/hash2 索引模型，这两个值由
+     * `YsmCrypt.calculateModelHashes(sha256, cacheKey)` 得出，与缓存文件名一致。
+     * 加载模型时记录一次，供协议层直接查用。
+     */
+    private val modelHashes: MutableMap<String, LongArray> = ConcurrentHashMap()
+
     val secureRand = SecureRandom()
 
     private val loadedPacks: MutableMap<String, ServerPackData> = ConcurrentHashMap()
@@ -150,6 +159,31 @@ object ModelManager {
 
     fun getCacheFile(formattedName: String): Path {
         return this.cacheFolderPath.resolve(formattedName)
+    }
+
+    // ---- 供 ModernYSM / OpenYSM 协议层使用 ----
+
+    /** 服务端密钥（56 字节）：模型的 hash 与缓存加密都基于它。 */
+    fun getServerKey(): ByteArray {
+        return this.cacheKey.copyOf()
+    }
+
+    /** 模型标识 → [hash1, hash2] 的只读快照。 */
+    fun getModelHashIndex(): Map<String, LongArray> {
+        return HashMap(this.modelHashes)
+    }
+
+    /** 按 hash1/hash2 读取缓存文件字节（即 encryptServerCache 的产物）。 */
+    fun getCacheBytesByHashes(hash1: Long, hash2: Long): ByteArray? {
+        val fileName = String.format("%016x%016x", hash1, hash2)
+        val path = this.cacheFolderPath.resolve(fileName)
+        if (!Files.isRegularFile(path)) return null
+        return try {
+            Files.readAllBytes(path)
+        } catch (e: Exception) {
+            YSMSyncMain.instance.slF4JLogger.warn("Failed to read model cache file: $fileName", e)
+            null
+        }
     }
 
     fun getCachedModels(): Collection<ServerModelData> {
@@ -583,6 +617,9 @@ object ModelManager {
             }
 
             validCacheFiles.add(cacheFileName)
+
+            // 记录 hash，供 ModernYSM 协议层按 hash1/hash2 索引模型
+            modelHashes[modelId] = hashes
 
             val isCustomSkinModel = modelId == "misc/2_steve" || modelId == "misc/1_alex"
 

@@ -114,6 +114,9 @@ object PlayerDataStorage : Listener {
         return resultFuture
     }
 
+    /** 把某个玩家的数据排队写盘（供离线/在线状态变更后立即持久化使用）。 */
+    fun savePlayer(uuid: UUID, data: PlayerData): CompletableFuture<Void> = enqueueSave(uuid, data)
+
     private fun enqueueSave(uuid: UUID, data: PlayerData): CompletableFuture<Void> {
         val task = Runnable {
             try {

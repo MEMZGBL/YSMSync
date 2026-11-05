@@ -12,3 +12,9 @@ build/
 
 # Build artifacts / packaged jars (build outputs are not committed)
 dist/
+
+# 服务端 NMS / Netty 由 prepare-libs.sh 从本地服务端复制，不进仓库
+libs/leaves-server-*.jar
+libs/paper-server-*.jar
+libs/leaves-api-*.jar
+libs/netty/

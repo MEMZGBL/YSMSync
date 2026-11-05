@@ -15,6 +15,9 @@ model-defaults:
 # Web model portal. Put this behind a Baota HTTPS reverse proxy before exposing
 # it to the public Internet.
 web-portal:
+  # 网页标题，会同时显示在浏览器标签、顶部命令栏和首屏字标上。
+  # 可以写成服务器名，例如 "星辰聚落 模型中心"。
+  title: "YSMSync 模型中心"
   enabled: true
   host: "0.0.0.0"
   port: 25584

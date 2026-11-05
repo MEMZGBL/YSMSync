@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="zh-CN" data-ef-variant="standard">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>__PORTAL_TITLE__</title>
+<style>
+/* ============ 终末地风味：单强调色、切角即可点、细线分区、机械动效 ============ */
+:root{
+  color-scheme:light;
+  --paper:#F4F4F2; --panel:#FFFFFF; --ink:#161616; --ink2:#5C5C5C;
+  --rule:#D9D9D6; --chip:#E4E4E0; --signal:#FFFA00; --on-signal:#161616;
+  --danger:#B3261E; --trace:#161616;
+  --cmd-bg:#161616; --cmd-fg:#EDEDED;
+  --cut:8px; --cut-sm:7px;
+  --ease-snap:cubic-bezier(.16,1,.3,1); --ease-mech:cubic-bezier(.7,0,.2,1);
+  --ui:"Saira","Exo 2",system-ui,-apple-system,"Noto Sans SC","Source Han Sans SC","Microsoft YaHei",sans-serif;
+  --stretch:112%;
+}
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#191919; --panel:#222222; --ink:#EDEDED; --ink2:#A3A3A3;
+  --rule:#353535; --chip:#2E2E2E; --trace:#FFFA00;
+  --cmd-bg:#0E0E0E; --cmd-fg:#EDEDED;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--ui); font-size:15px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;border-radius:0}
+::selection{background:var(--signal);color:var(--on-signal)}
+
+/* ---- 三色条：只出现在页面顶部 ---- */
+.strip{height:3px;display:flex}
+.strip i{flex:1}
+.strip i:nth-child(1){background:#FF00F0}
+.strip i:nth-child(2){background:#FFFA00}
+.strip i:nth-child(3){background:#00FFA2}
+
+/* ---- 深色命令栏 ---- */
+.cmd{
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  background:var(--cmd-bg);color:var(--cmd-fg);
+  padding:0 24px;min-height:56px;
+}
+.cmd-brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.cmd-brand .mark{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  font-stretch:125%;color:#FFFA00;font-weight:600;white-space:nowrap;
+}
+.cmd-brand strong{
+  font-size:17px;font-weight:700;letter-spacing:.02em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cmd-nav{display:flex;align-items:center;gap:4px;margin-left:auto;flex-wrap:wrap}
+.nav-item{
+  padding:8px 14px;color:var(--cmd-fg);font-size:14px;font-weight:600;
+  letter-spacing:.04em;transition:background .18s var(--ease-mech),color .18s var(--ease-mech);
+  clip-path:polygon(0 0,calc(100% - var(--cut-sm)) 0,100% var(--cut-sm),100% 100%,0 100%);
+}
+.nav-item:hover{background:#2A2A2A}
+.nav-item.is-on{background:var(--signal);color:var(--on-signal)}
+.nav-item.is-quiet{color:#A3A3A3}
+.nav-item.is-quiet:hover{color:var(--cmd-fg)}
+.nav-item.hide{display:none}
+.theme-toggle{
+  width:34px;height:34px;color:var(--cmd-fg);border:1px solid #3A3A3A;
+  display:grid;place-items:center;font-size:15px;
+}
+.theme-toggle:hover{border-color:var(--signal);color:var(--signal)}
+
+/* ---- 首屏 ---- */
+.hero{padding:38px 40px 26px;border-bottom:1px solid var(--rule);position:relative;overflow:hidden}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-stretch:125%;
+  color:var(--ink2);font-weight:600;margin-bottom:10px}
+.wordmark{
+  margin:0;font-size:clamp(30px,5vw,54px);line-height:1.12;font-weight:800;
+  letter-spacing:-.01em;font-stretch:112%;word-break:break-word;
+}
+.fields{display:flex;gap:22px;flex-wrap:wrap;margin-top:18px;font-size:13px;color:var(--ink2)}
+.fields span{display:inline-flex;gap:8px;align-items:baseline}
+.fields b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;font-stretch:112%}
+.hero .load{
+  position:absolute;inset:auto 0 0 auto;padding:6px 12px;font-size:11px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);font-stretch:125%;
+}
+
+/* ---- 主体 ---- */
+main{max-width:980px;margin:0 auto;padding:28px 40px 72px}
+.block{margin-bottom:26px}
+.block-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.block-head .eb{font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  font-stretch:125%;color:var(--ink2);font-weight:600}
+.block-head h2{margin:0;font-size:20px;font-weight:700;letter-spacing:.01em}
+.sheet{background:var(--panel);border-top:2px solid var(--ink);padding:20px}
+.note{margin:0 0 14px;font-size:14px;color:var(--ink2);line-height:1.75}
+
+/* 状态条 */
+.status{
+  border-left:3px solid var(--trace);background:var(--panel);
+  padding:11px 15px;font-size:14px;margin-bottom:22px;color:var(--ink);
+}
+.status.ok{border-left-color:var(--ink);background:var(--signal);color:var(--on-signal);font-weight:600}
+.status.err{border-left-color:var(--ink);background:var(--chip);font-weight:600}
+.status:empty{display:none}
+
+/* 表单行 */
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+input[type=text],input[type=password],input[type=file],select{
+  background:var(--panel);border:1px solid var(--rule);padding:10px 12px;
+  min-height:42px;flex:1 1 200px;min-width:0;
+}
+input:focus-visible,select:focus-visible,button:focus-visible{
+  outline:2px solid var(--ink);outline-offset:2px;
+}
+input::placeholder{color:var(--ink2)}
+select{flex:0 1 260px}
+input[type=file]{padding:8px 10px;font-size:13px}
+
+/* 按钮：切角 = 可点击；黄色从左擦入 */
+.btn{
+  position:relative;overflow:hidden;isolation:isolate;
+  padding:10px 20px;min-height:42px;font-weight:700;font-size:14px;letter-spacing:.03em;
+  background:var(--ink);color:var(--paper);
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%);
+  transition:color .2s var(--ease-mech);
+}
+.btn::before{
+  content:"";position:absolute;inset:0;z-index:-1;background:var(--signal);
+  transform:scaleX(0);transform-origin:left;transition:transform .24s var(--ease-mech);
+}
+.btn:hover::before{transform:scaleX(1)}
+.btn:hover{color:var(--on-signal)}
+.btn[disabled]{opacity:.55;cursor:progress}
+.btn.secondary{
+  background:var(--chip);color:var(--ink);
+}
+.btn.secondary:hover{color:var(--on-signal)}
+.btn.danger{
+  background:transparent;color:var(--danger);box-shadow:inset 0 0 0 1px var(--danger);
+}
+.btn.danger::before{background:var(--danger)}
+.btn.danger:hover{color:var(--panel)}
+
+/* 隐藏 */
+.hide{display:none !important}
+
+/* 模型列表：细线分隔的记录行 */
+ul.list{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+ul.list li{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:13px 4px 13px 12px;border-bottom:1px solid var(--rule);
+  position:relative;transition:transform .18s var(--ease-mech);
+}
+ul.list li:hover{transform:translateX(6px)}
+ul.list li::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:transparent;transition:background .18s var(--ease-mech);
+}
+ul.list li:hover::before{background:var(--trace)}
+ul.list li strong{font-weight:700;font-size:15px;word-break:break-all;flex:1 1 auto;min-width:0}
+ul.list li .tag{
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-stretch:125%;
+  padding:3px 8px;background:var(--chip);color:var(--ink);font-weight:600;
+  clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%);
+}
+ul.list li .tag.private{background:var(--ink);color:var(--panel)}
+ul.list li button{padding:7px 14px;min-height:34px;font-size:13px}
+ul.list li.is-empty{color:var(--ink2);font-weight:400}
+ul.list li.is-empty::before{display:none}
+ul.list li.is-empty:hover{transform:none}
+
+/* 上传进度 */
+.progress{height:6px;background:var(--chip);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--ink);transition:width .2s var(--ease-snap)}
+.progress-wrap{margin-top:14px}
+.progress-wrap p{margin:9px 0 0;font-size:13px;color:var(--ink2)}
+.progress-wrap ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--ink2)}
+.progress-wrap ul li.fail{color:var(--ink);font-weight:600}
+.progress-wrap ul li.done{color:var(--ink2)}
+
+/* 文件信息 */
+.file-info{margin:12px 0 0;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums}
+
+/* 空状态 / 页脚 */
+.empty-note{font-size:14px;color:var(--ink2);line-height:1.8}
+footer{
+  border-top:1px solid var(--rule);padding:18px 40px;max-width:980px;margin:0 auto;
+  display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--ink2);
+  letter-spacing:.02em;
+}
+footer b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* 入场：短、硬、机械 */
+@keyframes ef-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.hero,.block{animation:ef-rise .5s var(--ease-snap) both}
+.block:nth-child(1){animation-delay:38ms}
+.block:nth-child(2){animation-delay:76ms}
+.block:nth-child(3){animation-delay:114ms}
+.block:nth-child(4){animation-delay:152ms}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+  ul.list li:hover{transform:none}
+}
+
+/* 窄屏 */
+@media (max-width:640px){
+  .cmd{padding:0 16px;gap:12px}
+  .cmd-nav{margin-left:0;width:100%;padding-bottom:10px}
+  .hero{padding:26px 16px 20px}
+  main{padding:20px 16px 56px}
+  footer{padding:16px}
+  .row>input,.row>select,.row>.btn{flex:1 1 100%}
+  ul.list li{gap:8px}
+}
+</style>
+</head>
+<body>
+<div class="strip"><i></i><i></i><i></i></div>
+
+<header class="cmd">
+  <div class="cmd-brand">
+    <span class="mark">// YSM</span>
+    <strong>__PORTAL_TITLE__</strong>
+  </div>
+  <nav class="cmd-nav">
+    <button class="nav-item is-on" id="homeBtn">首页</button>
+    <button class="nav-item" id="listBtn">模型列表</button>
+    <button class="nav-item hide" id="adminBtn">管理</button>
+    <button class="nav-item is-quiet" id="logoutBtn">退出</button>
+    <button class="theme-toggle" id="themeBtn" type="button" aria-label="切换深浅配色" title="切换深浅配色">◐</button>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="eyebrow">// MODEL PORTAL</div>
+  <h1 class="wordmark">__PORTAL_TITLE__</h1>
+  <div class="fields">
+    <span>通道 <b>2.6.0</b></span>
+    <span>模型 <b id="statModels">—</b></span>
+    <span>状态 <b id="statState">未登录</b></span>
+  </div>
+  <div class="load">MODEL SYNC</div>
+</section>
+
+<main>
+  <div id="notice" class="status" role="status">正在检查登录状态…</div>
+
+  <!-- 登录 / 注册 -->
+  <section id="login" class="block">
+    <div class="block-head"><span class="eb">// ACCESS</span><h2>登录 / 注册</h2></div>
+    <div class="sheet">
+      <p class="note">注册后需要在游戏内完成一次绑定，才能上传或使用模型。</p>
+      <div class="row">
+        <input id="username" autocomplete="username" placeholder="用户名：3–24 位英文、数字或下划线">
+        <input id="password" type="password" autocomplete="current-password" placeholder="密码：至少 8 位">
+        <button id="loginBtn" class="btn">登录</button>
+        <button id="registerBtn" class="btn secondary">注册</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 已登录 -->
+  <section id="app" class="block hide">
+    <div class="block-head"><span class="eb">// ACCOUNT</span><h2 id="who">账户</h2></div>
+    <div class="sheet">
+      <p id="state" class="note"></p>
+      <div class="row">
+        <button id="bindBtn" class="btn">生成游戏内绑定码</button>
+      </div>
+      <p id="bindHelp" class="status hide"></p>
+    </div>
+
+    <div class="block-head" style="margin-top:26px"><span class="eb">// UPLOAD</span><h2>批量上传模型</h2></div>
+    <div class="sheet">
+      <p class="note">可一次选择多个 .ysm 文件，单个文件最大 16 MB。系统逐个上传、校验并建立缓存；某个文件失败不会中断其余文件，也不会暂停服务器。</p>
+      <div class="row">
+        <input id="file" type="file" accept=".ysm" multiple>
+        <select id="visibility">
+          <option value="public">公共模型：所有玩家可使用</option>
+          <option value="private">私人模型：仅授权玩家可使用</option>
+        </select>
+        <button id="uploadBtn" class="btn">上传所选模型</button>
+      </div>
+      <p id="fileInfo" class="file-info">尚未选择模型文件。</p>
+      <div id="progressWrap" class="progress-wrap hide">
+        <div class="progress"><i id="bar"></i></div>
+        <p id="progressText">等待上传…</p>
+        <ul id="uploadQueue"></ul>
+      </div>
+    </div>
+
+    <div class="block-head" style="margin-top:26px"><span class="eb">// MODELS</span><h2>模型列表</h2></div>
+    <div class="sheet">
+      <p class="note">点击「使用」后，请保持在线等待模型同步完成。</p>
+      <ul id="models" class="list"></ul>
+    </div>
+  </section>
+
+  <!-- 管理员 -->
+  <section id="admin" class="block hide">
+    <div class="block-head"><span class="eb">// ADMIN</span><h2>管理员后台</h2></div>
+    <div class="sheet">
+      <p class="note">这里显示网页模型中心的全部模型，包括其他账户的私人模型。删除不可恢复；在线 YSM 客户端会立即收到重新同步指令，正在使用被删模型的玩家会自动回退默认模型。</p>
+      <div class="row"><button id="syncBtn" class="btn secondary">同步所有在线客户端</button></div>
+      <ul id="adminModels" class="list" style="margin-top:16px"></ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>通道 <b>yes_steve_model:2_6_0</b></span>
+  <span>协议版本 <b>2.6.0</b></span>
+  <span>服务 <b>YSMSync</b></span>
+</footer>
+
+<script>
+const el=id=>document.getElementById(id),
+  API=(location.pathname.endsWith('/')?location.pathname.slice(0,-1):location.pathname)+'/api';
+let me=null;
+
+/* ---- 深浅配色 ---- */
+(function(){
+  const KEY='ysm-portal-theme';
+  const saved=localStorage.getItem(KEY);
+  const prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const initial=saved||(prefersDark?'dark':'light');
+  document.documentElement.setAttribute('data-theme',initial);
+  window.__toggleTheme=function(){
+    const now=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',now);
+    localStorage.setItem(KEY,now);
+  };
+})();
+
+function notice(text,type=''){const n=el('notice');n.textContent=text;n.className='status '+type}
+function size(n){return n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(2)+' MB'}
+function busy(b,on,text){if(on){b.dataset.text=b.textContent;b.disabled=true;b.textContent=text}else{b.disabled=false;b.textContent=b.dataset.text||b.textContent}}
+function setStat(id,value){const n=el(id);if(n)n.textContent=value}
+function nav(on){['homeBtn','listBtn','adminBtn'].forEach(id=>{el(id).classList.toggle('is-on',id===on)})}
+
+async function api(path,options={}){
+  let r;
+  try{r=await fetch(API+path,options)}catch(e){throw Error('网络请求失败，请检查反向代理设置后重试。')}
+  let raw=await r.text(),data;
+  try{data=JSON.parse(raw)}catch(e){throw Error('服务返回了无法识别的数据。')}
+  if(!r.ok)throw Error(data.error||('请求失败（HTTP '+r.status+'）'));
+  return data;
+}
+
+async function home(){
+  nav('homeBtn');
+  try{
+    me=await api('/me');
+    el('login').classList.add('hide');
+    el('app').classList.remove('hide');
+    el('admin').classList.add('hide');
+    el('adminBtn').classList.toggle('hide',!me.admin);
+    el('who').textContent='你好，'+me.username;
+    el('state').textContent=me.bound
+      ? '已绑定游戏角色，可以上传和使用模型。'
+      : '尚未绑定游戏角色：请先生成绑定码，再在游戏内执行命令。';
+    setStat('statState',me.bound?'已绑定':'未绑定');
+    notice(me.bound?'已登录，模型中心已就绪。':'已登录，但还未绑定游戏角色。','ok');
+    await list();
+  }catch(e){
+    me=null;
+    el('login').classList.remove('hide');
+    el('app').classList.add('hide');
+    el('admin').classList.add('hide');
+    el('adminBtn').classList.add('hide');
+    setStat('statState','未登录');
+    notice('请登录或注册网页账户。');
+  }
+}
+
+async function auth(kind,button){
+  const u=el('username').value.trim(),p=el('password').value;
+  if(!u||!p){notice('请填写用户名和密码。','err');return}
+  busy(button,true,kind==='login'?'正在登录…':'正在注册…');
+  try{
+    await api('/'+kind,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'username='+encodeURIComponent(u)+'&password='+encodeURIComponent(p)});
+    notice(kind==='login'?'登录成功，正在载入模型中心…':'注册成功，请使用同一账号登录。','ok');
+    if(kind==='login')await home();
+  }catch(e){notice(e.message,'err')}finally{busy(button,false)}
+}
+
+async function bind(){
+  const b=el('bindBtn');busy(b,true,'正在生成…');
+  try{
+    let r=await api('/bind',{method:'POST'});
+    let h=el('bindHelp');
+    h.textContent='请在已进入服务器的角色聊天栏执行：'+r.instruction+'。绑定成功后刷新本页面。';
+    h.classList.remove('hide');
+    notice('绑定码已生成，请在游戏内完成绑定。','ok');
+  }catch(e){notice(e.message,'err')}finally{busy(b,false)}
+}
+
+function updateProgress(done,total,text){
+  el('progressWrap').classList.remove('hide');
+  el('bar').style.width=(total?Math.min(100,done*100/total):0)+'%';
+  el('progressText').textContent=text;
+}
+function queueItem(text,state=''){
+  let li=document.createElement('li');li.textContent=text;
+  if(state)li.className=state;el('uploadQueue').append(li);return li;
+}
+function selectedFiles(){return Array.from(el('file').files)}
+function uploadOne(f,visibility,onProgress){
+  return new Promise(resolve=>{
+    let data=new FormData(),x=new XMLHttpRequest();
+    data.append('model',f);data.append('visibility',visibility);
+    x.open('POST',API+'/upload');x.timeout=300000;
+    x.upload.onprogress=e=>{if(e.lengthComputable)onProgress(e.loaded,e.total)};
+    x.upload.onload=()=>onProgress(f.size,f.size);
+    x.onerror=()=>resolve({ok:false,message:'网络中断，文件未能上传完成，请重试。'});
+    x.ontimeout=()=>resolve({ok:false,message:'服务器校验超过 5 分钟仍未完成。'});
+    x.onload=()=>{
+      let d={};try{d=JSON.parse(x.responseText)}catch(e){}
+      resolve(x.status>=200&&x.status<300
+        ?{ok:true,message:d.message||'已校验并加入同步队列。'}
+        :{ok:false,message:d.error||('上传失败（HTTP '+x.status+'）')})
+    };
+    x.send(data);
+  });
+}
+
+async function list(){
+  if(!me)return;
+  try{
+    let all=await api('/models'),box=el('models');
+    box.replaceChildren();
+    setStat('statModels',String(all.length));
+    if(!all.length){
+      let li=document.createElement('li');
+      li.className='is-empty';
+      li.textContent='还没有可用的模型。上传一个 .ysm 文件后，它会出现在这里。';
+      box.append(li);return;
+    }
+    for(const m of all){
+      let li=document.createElement('li'),name=document.createElement('strong'),
+          tag=document.createElement('span'),use=document.createElement('button');
+      name.textContent=m.name;
+      tag.className='tag '+(m.private?'private':'');
+      tag.textContent=m.private?'私人':'公共';
+      use.className='btn';use.textContent='使用';
+      use.onclick=()=>useModel(m.id,use);
+      li.append(name,tag,use);
+      if(m.private&&m.owner===me.username){
+        let grant=document.createElement('button');
+        grant.className='btn secondary';grant.textContent='授权玩家';
+        grant.onclick=()=>grantModel(m.id,grant);
+        li.append(grant);
+      }
+      box.append(li);
+    }
+  }catch(e){notice('加载模型列表失败：'+e.message,'err')}
+}
+
+async function useModel(id,b){
+  busy(b,true,'正在应用…');
+  try{let r=await api('/model/'+encodeURIComponent(id)+'/use',{method:'POST'});
+    notice(r.message+' 请保持在线等待同步完成。','ok')}
+  catch(e){notice(e.message,'err')}finally{busy(b,false)}
+}
+
+async function grantModel(id,b){
+  let player=prompt('输入要授权的游戏内玩家名：');if(!player)return;
+  busy(b,true,'正在授权…');
+  try{await api('/model/'+encodeURIComponent(id)+'/grant',{method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'player='+encodeURIComponent(player.trim())});
+    notice('已授权 '+player+' 使用该私人模型。','ok')}
+  catch(e){notice(e.message,'err')}finally{busy(b,false)}
+}
+
+async function admin(){
+  if(!me||!me.admin)return;
+  nav('adminBtn');
+  el('app').classList.add('hide');el('admin').classList.remove('hide');
+  try{
+    let all=await api('/admin/models'),box=el('adminModels');
+    box.replaceChildren();
+    if(!all.length){
+      let li=document.createElement('li');
+      li.className='is-empty';
+      li.textContent='网页模型中心还没有模型。上传后这里会列出全部条目。';
+      box.append(li);return;
+    }
+    for(const m of all){
+      let li=document.createElement('li'),name=document.createElement('strong'),
+          meta=document.createElement('span'),del=document.createElement('button');
+      name.textContent=m.name;
+      meta.className='tag '+(m.private?'private':'');
+      meta.textContent=(m.private?'私人':'公共')+' / '+m.owner;
+      del.className='btn danger';del.textContent='删除模型';
+      del.onclick=()=>deleteModel(m,del);
+      li.append(name,meta,del);box.append(li);
+    }
+  }catch(e){notice('加载管理模型列表失败：'+e.message,'err')}
+}
+
+async function deleteModel(m,b){
+  if(!confirm('确认永久删除「'+m.name+'」吗？此操作不可恢复，并会立即同步在线 YSM 客户端。'))return;
+  busy(b,true,'正在删除…');
+  try{let r=await api('/model/'+encodeURIComponent(m.id)+'/delete',{method:'POST'});
+    notice(r.message,'ok');await admin();await list()}
+  catch(e){notice(e.message,'err');busy(b,false)}
+}
+
+async function syncClients(){
+  const b=el('syncBtn');busy(b,true,'正在同步…');
+  try{let r=await api('/admin/sync',{method:'POST'});notice(r.message,'ok')}
+  catch(e){notice(e.message,'err')}finally{busy(b,false)}
+}
+
+async function logout(){
+  try{await api('/logout',{method:'POST'});notice('已退出登录。','ok')}
+  catch(e){notice(e.message,'err')}finally{home()}
+}
+
+el('file').onchange=()=>{
+  let files=selectedFiles(),total=files.reduce((n,f)=>n+f.size,0);
+  el('fileInfo').textContent=files.length
+    ?'已选择 '+files.length+' 个模型（共 '+size(total)+'）：'+files.slice(0,3).map(f=>f.name).join('、')+(files.length>3?' 等':'')
+    :'尚未选择模型文件。';
+};
+el('homeBtn').onclick=home;
+el('listBtn').onclick=()=>{nav('listBtn');el('admin').classList.add('hide');el('app').classList.remove('hide');list()};
+el('adminBtn').onclick=admin;
+el('syncBtn').onclick=syncClients;
+el('logoutBtn').onclick=logout;
+el('loginBtn').onclick=()=>auth('login',el('loginBtn'));
+el('registerBtn').onclick=()=>auth('register',el('registerBtn'));
+el('bindBtn').onclick=bind;
+el('uploadBtn').onclick=upload;
+el('themeBtn').onclick=()=>window.__toggleTheme();
+home();
+</script>
+</body>
+</html>
