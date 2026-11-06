@@ -8,7 +8,8 @@ Yes Steve Model（YSM）服务端同步插件，适配 **Minecraft 26.3** 服务
 > 本分支在保留 YSMSync 原有模型管理、网页门户的基础上，
 > 新增了一层 **ModernYSM 协议适配**，让使用开源 YSM 替代品（ModernYSM）的客户端
 > 能与服务端完成握手、拉取模型、切换模型、播放额外动画。
-> 完整的移植过程、协议细节和踩坑记录见 **[PORTING.md](PORTING.md)**。
+> 完整的移植过程、协议细节和踩坑记录见 **[PORTING.md](PORTING.md)**，
+> 版本变更历史见 **[CHANGELOG.md](CHANGELOG.md)**。
 
 ---
 
