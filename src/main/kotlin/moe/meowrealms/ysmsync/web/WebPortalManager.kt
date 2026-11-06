@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer
 import moe.meowrealms.ysmsync.YSMSyncMain
 import moe.meowrealms.ysmsync.data.PlayerDataStorage.getYSMSyncData
 import moe.meowrealms.ysmsync.model.ModelManager
+import moe.meowrealms.ysmsync.modernysm.ModernYsmManager
 import moe.meowrealms.ysmsync.network.ClientConnectionManager
 import moe.meowrealms.ysmsync.network.ClientConnectionManager.getYsmConnection
 import org.bukkit.Bukkit
@@ -28,7 +29,7 @@ import javax.crypto.spec.PBEKeySpec
 object WebPortalManager {
     private val gson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
     private val random = SecureRandom(); private val sessions = ConcurrentHashMap<String, String>(); private val codes = ConcurrentHashMap<String, String>()
-    private lateinit var plugin: YSMSyncMain; private lateinit var file: java.nio.file.Path; private var data = Store(); private var server: HttpServer? = null; private var timer = -1; private var maxSize = 16 * 1024 * 1024
+    private lateinit var plugin: YSMSyncMain; private lateinit var file: java.nio.file.Path; private var data = Store(); private var server: HttpServer? = null; private var timer = -1; private var lastModelSignature = ""; private var maxSize = 16 * 1024 * 1024
     data class Store(val accounts: MutableMap<String, Account> = linkedMapOf(), val models: MutableMap<String, PortalModel> = linkedMapOf())
     data class Account(var password: String = "", var salt: String = "", var uuid: String? = null)
     data class PortalModel(var id: String = "", var name: String = "", var owner: String = "", var private: Boolean = false, val grants: MutableSet<String> = linkedSetOf())
@@ -79,11 +80,29 @@ object WebPortalManager {
     private fun syncRecheckSeconds(): Long =
         plugin.config.getLong("web-portal.sync-check-interval-seconds", 30).coerceAtLeast(10)
 
+    /**
+     * 定期检查模型集合有没有变化，**只有变化了才重新同步**。
+     *
+     * 早期实现是无条件每 N 秒对全部在线玩家重推一次模型，导致玩家在客户端里
+     * 平白无故看到一次同步过程（点开模型分组时尤其明显），而模型其实一个字节都没变。
+     * 现在改为比对模型指纹：上传 / 删除 / 重载模型后指纹改变，才会触发重新同步。
+     */
     private fun startSyncRecheckTimer() {
         val seconds = syncRecheckSeconds()
+        lastModelSignature = ModelManager.modelSignature()
+
         timer = Bukkit.getScheduler().scheduleSyncRepeatingTask(
             plugin,
-            Runnable { ClientConnectionManager.restartModelSynchronizationForConnectedPlayers() },
+            Runnable {
+                val current = ModelManager.modelSignature()
+                if (current == lastModelSignature) {
+                    return@Runnable
+                }
+                lastModelSignature = current
+                plugin.slF4JLogger.info("Model catalog changed; re-synchronizing online players.")
+                ClientConnectionManager.restartModelSynchronizationForConnectedPlayers()
+                ModernYsmManager.broadcastCatalogChanged()
+            },
             seconds * 20,
             seconds * 20
         )

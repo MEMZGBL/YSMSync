@@ -59,6 +59,18 @@ object ModernYsmManager {
                 Logs.error("Failed to start ModernYSM sync for ${player.name}", t)
             }
         }, null, 20L)
+
+        // 再延迟一段：等客户端把模型加载/缓存就绪，再把「自己的模型」广播出去，
+        // 并把「其他在线玩家的模型」推给自己。
+        // 缺了这一步，玩家每次进服都会停在 default —— 客户端不知道服务端记的模型是什么。
+        Scheduling.entitySpecificScheduler(player).runDelayed(Runnable {
+            if (!player.isOnline) return@Runnable
+            try {
+                restoreModelSelection(player)
+            } catch (t: Throwable) {
+                Logs.error("Failed to restore model selection for ${player.name}", t)
+            }
+        }, null, RESTORE_SELECTION_DELAY_TICKS)
     }
 
     /** 玩家离开：清理会话。 */
@@ -260,6 +272,52 @@ object ModernYsmManager {
         }
     }
 
+    /** 进服后延迟多少 tick 再恢复模型选择（等客户端加载完模型）。 */
+    private const val RESTORE_SELECTION_DELAY_TICKS = 40L
+
+    /**
+     * 恢复并同步玩家的模型选择。
+     *
+     * 做两件事：
+     * 1. 把该玩家保存的模型广播给所有已握手玩家（含自己）——
+     *    否则客户端进服后一直停在 default，因为服务端从没告诉过它用哪个模型
+     * 2. 把所有其他在线玩家的模型也推给该玩家，让他一进服就能看到别人正确的样子
+     */
+    private fun restoreModelSelection(player: Player) {
+        val own = selectionOf(player)
+        if (own != null) {
+            Logs.info(
+                "Restoring model selection for {}: {} / {}",
+                player.name, own.first, own.second
+            )
+            broadcastModelSelection(player, own.first, own.second)
+        } else {
+            Logs.warn("No saved model selection for {}; leaving client default.", player.name)
+        }
+
+        // 把其他在线玩家的模型推给刚进服的人
+        for (other in Bukkit.getOnlinePlayers()) {
+            if (other.uniqueId == player.uniqueId) continue
+            if (!player.canSee(other)) continue
+            if (sessions[other.uniqueId]?.isHandshakeConfirmed != true) continue
+
+            val otherSelection = selectionOf(other) ?: continue
+            val payload = buildSetModelAndTexture(other.entityId, otherSelection.first, otherSelection.second)
+                ?: continue
+            sendPayload(player, payload)
+        }
+    }
+
+    /** 读取玩家当前模型与贴图；模型不可用时返回 null。 */
+    private fun selectionOf(player: Player): Pair<String, String>? {
+        val data = runCatching { player.getYSMSyncData() }.getOrNull() ?: return null
+        val modelId = data.selectedModelId.takeIf { it.isNotBlank() } ?: return null
+        val texture = data.selectedModelTexture.takeIf { it.isNotBlank() }
+            ?: ModelManager.defaultTextureOf(modelId)
+            ?: return null
+        return modelId to texture
+    }
+
     /**
      * 广播实体模型选择。
      *
@@ -304,6 +362,31 @@ object ModernYsmManager {
             return null
         } finally {
             buf.release()
+        }
+    }
+
+    /**
+     * 模型目录发生变化（上传 / 删除 / 重载）时调用。
+     *
+     * 让已握手的客户端重新走一次目录交换，把新增或消失的模型反映到界面上。
+     * 注意：只有模型真的变化时才会被调用，正常游戏过程中不会被触发。
+     */
+    fun broadcastCatalogChanged() {
+        if (sessions.isEmpty()) return
+        for ((playerId, session) in sessions) {
+            val player = Bukkit.getPlayer(playerId) ?: continue
+            if (!session.isHandshakeConfirmed) continue
+            Scheduling.entitySpecificScheduler(player).run(Runnable {
+                try {
+                    val packet = session.onCatalogChanged()
+                    if (packet != null) {
+                        sendPayload(player, packet)
+                    }
+                    Logs.info("Model catalog changed; re-syncing {}.", player.name)
+                } catch (t: Throwable) {
+                    Logs.error("Failed to re-sync ${player.name} after catalog change", t)
+                }
+            }, null)
         }
     }
 

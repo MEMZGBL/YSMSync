@@ -3,8 +3,8 @@
 本文记录把 YSMSync 的同步协议从「官方 YSM 自有协议」移植到 **ModernYSM（OpenYSM 2.6.x）** 的过程，
 以及踩到的每一个坑。目标读者是后续维护者和想自己改的人。
 
-- 插件版本：**1.2.0-modernysm**
-- 服务端：Paper / Leaves **26.1.2 ~ 26.3**（编译基线 26.1.2，实测两版均可运行），Java 25
+- 插件版本：**1.2.1**
+- 服务端：Leaves 26.3（Paper 系，`protocol_version = 777`），Java 25
 - 客户端：Minecraft 26.3 + ModernYSM 2.6.x（`MOD_ID = yes_steve_model`）
 - 通道：`yes_steve_model:2_6_0`
 
@@ -214,32 +214,16 @@ io.netty.util.IllegalReferenceCountException: refCnt: 0, decrement: 1
 
 ---
 
-## 四、跨版本设计（26.1.2 ~ 26.3）
+## 四、26.3 环境要点
 
-本移植刻意**不把编译基线抬到 26.3**，而是一份产物通吃两个版本。
-
-| 项 | 26.1.2 | 26.3 |
-| --- | --- | --- |
-| `protocol_version` | — | 777 |
-| `world_version` | — | 5023 |
-| Netty | 4.2.7.Final | 4.2.16.Final |
-| `DiscardedPayload` 签名 | `(Identifier, byte[])` | 同左 |
-| `DiscardedPayload` codec | 裸 `writeBytes` | 裸 `writeBytes` |
-| 编译基线 | `paper-api:26.1.2.build.74-stable` | — |
-| `plugin.yml` | `api-version: '26.1'` | — |
-
-做法：
-
-1. 编译依赖锁在 `paper-api:26.1.2.build.74-stable`，NMS jar 用 `fileTree` 匹配
-   `paper-server-*` / `leaves-server-*`，放哪个版本都能编译
-2. `api-version` 写 `26.1`（这是**最低**支持版本，26.3 服务端同样会加载）
-3. 只使用两个版本共有的 NMS 符号：`DiscardedPayload`、`ClientboundCustomPayloadPacket`、
-   `ServerboundCustomPayloadPacket`、`Identifier`、`Connection`
-4. Netty 只用 `ByteBuf` / `Channel` / `ChannelPipeline` 等基础 API
-
-**验证**：用 26.1.2 的 API 与 NMS 编译成功的 jar，放到 26.3 服务端运行，
-插件加载、6 个模型解析、Web 门户、加密握手、模型切换、按 Z 播放动画全部正常。
-所以不需要运行时版本判断，也不需要反射兜底。
+| 项 | 值 |
+| --- | --- |
+| `protocol_version` | 777 |
+| `world_version` | 5023 |
+| Java | 25 |
+| Gradle | 9.8.2 |
+| paper-api | `26.3.build.9-alpha` |
+| `plugin.yml` | `api-version: '26.3'` |
 
 构建：
 
@@ -249,7 +233,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 gradle build --no-daemon --console=plain
 ```
 
-产物：`build/libs/YSMSync-1.2.0-modernysm.jar`（shadow，约 2.3 MB）
+产物：`build/libs/YSMSync-1.2.1.jar`（shadow，约 2.6 MB，含内置 misc 模型资源）
 
 ---
 

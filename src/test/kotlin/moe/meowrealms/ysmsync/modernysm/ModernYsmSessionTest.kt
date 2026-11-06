@@ -41,6 +41,7 @@ class ModernYsmSessionTest {
         override fun serverKey(): ByteArray = serverKey
         override fun clientKey(): ByteArray = ModernYsmSession.createClientKey()
         override fun catalog(): Collection<ModelCatalogEntry> = listOf(entry)
+        override fun packs(): Collection<moe.meowrealms.ysmsync.model.ServerPackData> = emptyList()
         override fun modelCacheBytes(hash1: Long, hash2: Long): ByteArray? =
             if (hash1 == entry.hash1 && hash2 == entry.hash2) modelBytes else null
     }

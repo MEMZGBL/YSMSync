@@ -45,6 +45,9 @@ object ModelManagerModelSource : ModernYsmModelSource {
         return result
     }
 
+    override fun packs(): Collection<moe.meowrealms.ysmsync.model.ServerPackData> =
+        ModelManager.getBuiltinModels()
+
     override fun modelCacheBytes(hash1: Long, hash2: Long): ByteArray? =
         ModelManager.getCacheBytesByHashes(hash1, hash2)
 }

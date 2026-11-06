@@ -42,6 +42,14 @@ interface ModernYsmModelSource {
     fun catalog(): Collection<ModelCatalogEntry>
 
     /**
+     * 当前可下发的资源包（ModelPack）元数据。
+     *
+     * 客户端按资源包对模型分组显示，并从中取封面图标（ysm-pack.png）。
+     * 不下发资源包时，模型在客户端的选择界面里没有归属，图标会显示成异常色块。
+     */
+    fun packs(): Collection<moe.meowrealms.ysmsync.model.ServerPackData>
+
+    /**
      * 读取模型缓存文件内容。
      *
      * 返回值必须是 `YsmCrypt.encryptServerCache(...)` 的结果 —— 也就是
@@ -257,10 +265,50 @@ class ModernYsmSession(
                     out.writeVarInt(entry.version)
                 }
 
-                // 服务端资源包（ModelPack）数量。
-                // 客户端会依次读取每个包的 folderPath / 图标 / 名称描述 / 语言表。
-                // 当前 YSMSync 不下发资源包元数据，发送 0 表示没有。
-                out.writeVarInt(0)
+                // 服务端资源包（ModelPack）列表。
+                // 客户端按包对模型分组，并从这里取封面图标；不发送会导致模型
+                // 在选择界面里没有归属、图标显示成异常色块。
+                val packs = source.packs()
+                out.writeVarInt(packs.size)
+                for (pack in packs) {
+                    out.writeString(pack.folderPath ?: "")
+
+                    val icon = pack.iconData
+                    if (icon != null && icon.isNotEmpty()) {
+                        out.writeVarInt(1)
+                        out.writeByteArray(icon)
+                        out.writeVarInt(pack.iconWidth)
+                        out.writeVarInt(pack.iconHeight)
+                        out.writeVarInt(pack.iconFormat)
+                        out.writeVarInt(0) // 保留字段，官方固定发 0
+                    } else {
+                        out.writeVarInt(0)
+                    }
+
+                    val hasInfo = !pack.name.isNullOrBlank() || !pack.description.isNullOrBlank()
+                    if (hasInfo) {
+                        out.writeVarInt(1)
+                        out.writeString(pack.name ?: "")
+                        out.writeString(pack.description ?: "")
+                    } else {
+                        out.writeVarInt(0)
+                    }
+
+                    val lang = pack.lang
+                    if (lang.isNullOrEmpty()) {
+                        out.writeVarInt(0)
+                    } else {
+                        out.writeVarInt(lang.size)
+                        for ((langKey, translations) in lang) {
+                            out.writeString(langKey)
+                            out.writeVarInt(translations.size)
+                            for ((key, value) in translations) {
+                                out.writeString(key)
+                                out.writeString(value)
+                            }
+                        }
+                    }
+                }
 
                 val result = YsmCrypt.encrypt(out.toArray(), nextKey, false)
                 return wrapEncrypted(result.data())
@@ -376,6 +424,17 @@ class ModernYsmSession(
         out[0] = ModernYsmProtocol.Packets.S2C_MODEL_SYNC_PAYLOAD.toByte()
         System.arraycopy(encrypted, 0, out, 1, encrypted.size)
         return out
+    }
+
+    /**
+     * 模型目录发生变化后重新发起同步。
+     *
+     * 重置到初始状态再生成一个新的公钥交换包（01），客户端收到后会自动
+     * 重新走一遍握手与目录比对，从而看到新增或消失的模型。
+     */
+    fun onCatalogChanged(): ByteArray? {
+        cleanup()
+        return beginSync()
     }
 
     /** 清理会话持有的状态。 */

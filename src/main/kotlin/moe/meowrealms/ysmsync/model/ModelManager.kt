@@ -173,6 +173,25 @@ object ModelManager {
         return HashMap(this.modelHashes)
     }
 
+    /**
+     * 当前模型集合的指纹。
+     *
+     * 用途：判断"模型到底有没有变"。定期同步任务不该无条件重推模型 ——
+     * 客户端每次进服已经同步过目录，服务端再定时重启同步只会让玩家
+     * 莫名其妙看到一次同步过程。只有指纹变化（上传/删除/重载）时才应该推。
+     */
+    fun modelSignature(): String {
+        if (this.modelHashes.isEmpty()) return "empty"
+        val sb = StringBuilder(this.modelHashes.size * 48)
+        for (modelId in this.modelHashes.keys.sorted()) {
+            val pair = this.modelHashes[modelId] ?: continue
+            sb.append(modelId).append(':')
+                .append(pair.getOrNull(0) ?: 0L).append(':')
+                .append(pair.getOrNull(1) ?: 0L).append('|')
+        }
+        return sb.toString()
+    }
+
     /** 按 hash1/hash2 读取缓存文件字节（即 encryptServerCache 的产物）。 */
     fun getCacheBytesByHashes(hash1: Long, hash2: Long): ByteArray? {
         val fileName = String.format("%016x%016x", hash1, hash2)
