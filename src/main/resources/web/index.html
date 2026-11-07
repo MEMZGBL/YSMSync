@@ -174,6 +174,10 @@ ul.list li button{padding:7px 14px;min-height:34px;font-size:13px}
 ul.list li.is-empty{color:var(--ink2);font-weight:400}
 ul.list li.is-empty::before{display:none}
 ul.list li.is-empty:hover{transform:none}
+#uploadQueue{margin:8px 0 0;padding:0;list-style:none}
+#uploadQueue li{font-size:13px;line-height:1.6;color:var(--ink2);word-break:break-all}
+#uploadQueue li.upload-ok{color:var(--ink)}
+#uploadQueue li.upload-err{color:var(--danger);font-weight:600}
 
 /* 上传进度 */
 .progress{height:6px;background:var(--chip);overflow:hidden}
@@ -412,6 +416,41 @@ function queueItem(text,state=''){
   if(state)li.className=state;el('uploadQueue').append(li);return li;
 }
 function selectedFiles(){return Array.from(el('file').files)}
+async function upload(){
+  const files=selectedFiles();
+  if(!files.length){notice('请先选择 .ysm 模型文件。','err');return}
+  const btn=el('uploadBtn'),visibility=el('visibility').value;
+  const total=files.reduce((n,f)=>n+f.size,0);
+  let done=0,ok=0,fail=0;
+  el('uploadQueue').replaceChildren();
+  busy(btn,true,'正在上传…');
+  try{
+    for(const f of files){
+      if(!f.name.toLowerCase().endsWith('.ysm')){
+        queueItem(f.name+'：已跳过（仅支持 .ysm）','upload-err');fail++;continue;
+      }
+      const li=queueItem(f.name+'（'+size(f.size)+'）等待校验…');
+      const r=await uploadOne(f,visibility,loaded=>{
+        li.textContent=f.name+'（'+size(f.size)+'）'+(f.size?Math.round(loaded*100/f.size):0)+'%';
+        updateProgress(done+loaded,total,'正在上传 '+f.name+' …');
+      });
+      done+=f.size;
+      updateProgress(done,total,'已处理 '+size(done)+' / '+size(total));
+      li.className=r.ok?'upload-ok':'upload-err';
+      li.textContent=f.name+'：'+r.message;
+      if(r.ok)ok++;else fail++;
+    }
+    updateProgress(total,total,'上传结束：成功 '+ok+' 个'+(fail?'，失败 '+fail+' 个':''));
+    notice('上传完成，成功 '+ok+' 个'+(fail?'，失败 '+fail+' 个。':'。'),fail?'err':'ok');
+  }catch(e){
+    notice('上传中断：'+e.message,'err');
+  }finally{
+    busy(btn,false);
+    el('file').value='';
+    el('fileInfo').textContent='尚未选择模型文件。';
+  }
+  await list();
+}
 function uploadOne(f,visibility,onProgress){
   return new Promise(resolve=>{
     let data=new FormData(),x=new XMLHttpRequest();
