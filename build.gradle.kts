@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "local.mcserver"
-version = "1.2.0-modernysm"
+version = "1.2.1"
 
 repositories {
     mavenCentral()
@@ -28,6 +28,11 @@ dependencies {
 
     // 从 YSM 模组剥离出的纯数据逻辑（模型解析 / 加密 / zstd），不含任何 Minecraft 类
     implementation(files("libs/ysm-core-pure.jar"))
+
+    // YSM 依赖的图像解码库（WebP / JPEG / PNG 等）。
+    // 内置的酒狐等模型里用到 WebP 贴图，缺了它 YSMFolderDeserializer 会抛
+    // NoClassDefFoundError: rip/ysm/imagestream/webp/WebpDecoder 导致整包解析失败。
+    implementation(files("libs/imagestream.jar"))
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testImplementation(fileTree("libs/netty") { include("*.jar") })
@@ -63,6 +68,16 @@ tasks.processResources {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 两个发布产物
+//
+//   YSMSync-<ver>.jar        基础版：内置 misc（杂项）模型，约 22 MB
+//   YSMSync-<ver>-full.jar   全量版：额外内置 wine_fox（酒狐）模型，约 60 MB
+//
+// 酒狐资源体积较大，默认不打包；需要开箱即用全套内置模型时用 -full。
+// 两者的代码完全一致，只有内置模型资源不同。
+// ---------------------------------------------------------------------------
+
 tasks.shadowJar {
     archiveBaseName.set("YSMSync")
     archiveClassifier.set("")
@@ -71,6 +86,30 @@ tasks.shadowJar {
     mergeServiceFiles()
 }
 
+val shadowJarFull by tasks.registering(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar::class) {
+    group = "build"
+    description = "全量版：内置 misc + wine_fox（酒狐）模型"
+
+    archiveBaseName.set("YSMSync")
+    archiveClassifier.set("full")
+    archiveVersion.set(project.version.toString())
+
+    from(sourceSets.main.get().output)
+    // 额外塞进酒狐资源，与基础版的 builtin_models 目录合并
+    from("src/full/resources")
+
+    configurations = listOf(project.configurations.runtimeClasspath.get())
+    mergeServiceFiles()
+
+    // 与主产物保持一致的清单
+    manifest {
+        attributes(
+            "Implementation-Title" to "YSMSync",
+            "Implementation-Version" to project.version,
+        )
+    }
+}
+
 tasks.build {
-    dependsOn(tasks.shadowJar)
+    dependsOn(tasks.shadowJar, shadowJarFull)
 }
